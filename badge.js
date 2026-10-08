@@ -9,7 +9,10 @@
   var CAPTION = "I'll be at #DevFestNoida2026 on 10 October at ExpoInn, Greater Noida. One day, four tracks, a floor full of builders. See you there!";
   var SITE = 'https://devfest2k26.gdgnoida.com';
   var VENUE = '10 October 2026  \u00B7  ExpoInn, Greater Noida';
-  var ATTENDING = 'I\u2019m attending DevFest Noida 2026';
+  var ATTENDING = 'Is attending DevFest Noida 2026';
+  // The DevFest logo is baked into the background PNG, so it is moved/scaled with the background art.
+  // scale: 0.98 = 2% smaller (anchored top-centre) | shiftY: negative = move up (px). Use 1 / 0 to switch off.
+  var BG_ADJUST = { scale: 0.96, shiftY: -70 };
 
   var state = { photo: null, zoom: 1, offsetX: 0, offsetY: 0, format: 'post', theme: 'green', name: '' };
   var bgs = {};
@@ -65,23 +68,30 @@
     try { c.letterSpacing = '0px'; } catch (e) {}
     c.fillStyle = '#050505'; c.fillRect(0, 0, W, H);
     var bg = bgs[state.theme];
-    if (bg) c.drawImage(bg, 0, 0, 1080, H, 0, 0, W, H); // stories are 1080x1920; post crops the top 1350
+    if (bg) {
+      // stories are 1080x1920; post uses the top part. Scaled from the top-centre, then nudged up.
+      var bs = BG_ADJUST.scale, by = BG_ADJUST.shiftY;
+      var srcH = Math.min(bg.naturalHeight, (H - by) / bs); // post: borrow extra rows so no gap shows at the bottom
+      c.drawImage(bg, 0, 0, 1080, srcH, (W - W * bs) / 2, by, W * bs, srcH * bs);
+    }
 
+    // Layout: photo card is smaller and centred; name sits ABOVE the "attending" line.
+    // Card and text block shifted up 10px (closer to the logo); pills unchanged.
     var L = isPost
       ? {
-          card: { x: 150, y: 420, w: 780, h: 620 },
-          attendY: 1066, attendSize: 30,
-          nameY: 1106, nameSize: 56,
-          venueY: 1176, venueSize: 26,
-          solo: { attendY: 1072, attendSize: 36, venueY: 1128, venueSize: 30 },
+          card: { x: 220, y: 435, w: 640, h: 560 },
+          nameY: 1025, nameSize: 44,
+          attendY: 1085, attendSize: 24,
+          venueY: 1125, venueSize: 22,
+          solo: { attendY: 1033, attendSize: 28, venueY: 1075, venueSize: 24 },
           pillY: 1240, pillH: 64, pillFont: 26, M: 60
         }
       : {
-          card: { x: 120, y: 470, w: 840, h: 880 },
-          attendY: 1392, attendSize: 34,
-          nameY: 1446, nameSize: 66,
-          venueY: 1530, venueSize: 30,
-          solo: { attendY: 1410, attendSize: 40, venueY: 1482, venueSize: 34 },
+          card: { x: 195, y: 495, w: 690, h: 800 },
+          nameY: 1330, nameSize: 54,
+          attendY: 1403, attendSize: 28,
+          venueY: 1451, venueSize: 26,
+          solo: { attendY: 1335, attendSize: 32, venueY: 1389, venueSize: 28 },
           pillY: 1760, pillH: 76, pillFont: 30, M: 70
         };
 
@@ -89,17 +99,21 @@
 
     var maxTextW = W - L.M * 2;
     var nm = (state.name || '').trim();
-    var attY = nm ? L.attendY : L.solo.attendY;
-    var attSize = fitSize(c, ATTENDING, nm ? L.attendSize : L.solo.attendSize, 600, 0, maxTextW);
-    text(c, ATTENDING, W / 2, attY, { size: attSize, weight: 600, color: T.color, align: 'center' });
 
     if (nm) {
+      // name on top
       var nmSize = fitSize(c, nm, L.nameSize, 700, -1, maxTextW);
       text(c, nm, W / 2, L.nameY, { size: nmSize, weight: 700, color: '#FFFFFF', align: 'center', ls: -1 });
+      // "I'm attending..." below the name
+      var attSize = fitSize(c, ATTENDING, L.attendSize, 600, 0, maxTextW);
+      text(c, ATTENDING, W / 2, L.attendY, { size: attSize, weight: 600, color: T.color, align: 'center' });
       text(c, VENUE, W / 2, L.venueY, { size: L.venueSize, weight: 500, color: 'rgba(255,255,255,0.75)', align: 'center' });
     } else {
+      var soloSize = fitSize(c, ATTENDING, L.solo.attendSize, 600, 0, maxTextW);
+      text(c, ATTENDING, W / 2, L.solo.attendY, { size: soloSize, weight: 600, color: T.color, align: 'center' });
       text(c, VENUE, W / 2, L.solo.venueY, { size: L.solo.venueSize, weight: 500, color: 'rgba(255,255,255,0.8)', align: 'center' });
     }
+
     drawPill(c, L.M, L.pillY, L.pillH, L.pillFont, '#DevFestNoida2026', null, 'left');
     drawPill(c, W - L.M, L.pillY, L.pillH, L.pillFont, 'ATTENDEE', T.color, 'right');
   }
@@ -117,7 +131,7 @@
   }
 
   function drawPhotoCard(c, box, T) {
-    var x = box.x, y = box.y, w = box.w, h = box.h, pad = 12, r = 40;
+    var x = box.x, y = box.y, w = box.w, h = box.h, pad = 0, r = 40;
     c.save(); c.shadowColor = T.glow; c.shadowBlur = 70; c.fillStyle = 'rgba(5,5,5,0.72)'; roundRect(c, x, y, w, h, r); c.fill(); c.restore();
     c.save(); c.strokeStyle = T.color; c.lineWidth = 3; roundRect(c, x, y, w, h, r); c.stroke();
     c.strokeStyle = 'rgba(255,255,255,0.35)'; c.lineWidth = 1; roundRect(c, x + 1.5, y + 1.5, w - 3, h - 3, r - 1.5); c.stroke(); c.restore();
@@ -132,8 +146,8 @@
       c.fillStyle = '#0B0B0C'; c.fillRect(x + pad, y + pad, iw, ih);
       c.strokeStyle = 'rgba(255,255,255,0.06)'; c.lineWidth = 2;
       for (var k = 0; k < iw + ih; k += 26) { c.beginPath(); c.moveTo(x + pad + k, y + pad); c.lineTo(x + pad + k - ih, y + pad + ih); c.stroke(); }
-      text(c, 'drop your photo here', cx, cy - 10, { size: 34, weight: 600, color: '#FFFFFF', align: 'center', baseline: 'middle' });
-      text(c, 'the badge updates as you tweak', cx, cy + 30, { size: 20, weight: 400, color: 'rgba(255,255,255,0.55)', align: 'center', baseline: 'middle' });
+      text(c, 'drop your photo here', cx, cy - 10, { size: 30, weight: 600, color: '#FFFFFF', align: 'center', baseline: 'middle' });
+      text(c, 'the badge updates as you tweak', cx, cy + 26, { size: 18, weight: 400, color: 'rgba(255,255,255,0.55)', align: 'center', baseline: 'middle' });
     }
     c.restore();
   }
