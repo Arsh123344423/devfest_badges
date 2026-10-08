@@ -1,10 +1,10 @@
 (function () {
   'use strict';
   var THEMES = {
-    green:  { color: '#34A853', glow: 'rgba(52,168,83,0.75)',  bg: 'assets/df-story-green.png' },
-    yellow: { color: '#F9AB00', glow: 'rgba(249,171,0,0.75)',  bg: 'assets/df-story-yellow.png' },
-    blue:   { color: '#4285F4', glow: 'rgba(66,133,244,0.75)', bg: 'assets/df-story-blue.png' },
-    red:    { color: '#EA4335', glow: 'rgba(234,67,53,0.75)',  bg: 'assets/df-story-red.png' }
+    green:  { color: '#34A853', glow: 'rgba(52,168,83)',  bg: 'assets/df-story-green.png' },
+    yellow: { color: '#F9AB00', glow: 'rgba(249,171,0)',  bg: 'assets/df-story-yellow.png' },
+    blue:   { color: '#4285F4', glow: 'rgba(66,133,244)', bg: 'assets/df-story-blue.png' },
+    red:    { color: '#EA4335', glow: 'rgba(234,67,53)',  bg: 'assets/df-story-red.png' }
   };
   var CAPTION = "I'll be at #DevFestNoida2026 on 10 October at ExpoInn, Greater Noida. One day, four tracks, a floor full of builders. See you there!";
   var SITE = 'https://devfest2k26.gdgnoida.com';
@@ -12,7 +12,7 @@
   var ATTENDING = 'Is attending DevFest Noida 2026';
   // The DevFest logo is baked into the background PNG, so it is moved/scaled with the background art.
   // scale: 0.98 = 2% smaller (anchored top-centre) | shiftY: negative = move up (px). Use 1 / 0 to switch off.
-  var BG_ADJUST = { scale: 0.96, shiftY: -70 };
+  var BG_ADJUST = { scale: 0.98, shiftY: -70 };
 
   var state = { photo: null, zoom: 1, offsetX: 0, offsetY: 0, format: 'post', theme: 'green', name: '' };
   var bgs = {};
@@ -51,10 +51,15 @@
   function text(c, str, x, y, o) {
     c.save(); setFont(c, o.size, o.weight, o.ls);
     c.fillStyle = o.color; c.textAlign = o.align || 'left'; c.textBaseline = o.baseline || 'top';
+    if (o.glow) { c.shadowColor = o.glow; c.shadowBlur = o.blur || 24; c.shadowOffsetX = 0; c.shadowOffsetY = 0; }
     c.fillText(str, x, y); c.restore();
   }
   function measure(c, str, size, weight, ls) {
     c.save(); setFont(c, size, weight, ls); var w = c.measureText(str).width; c.restore(); return w;
+  }
+  function hexA(hex, a) {
+    var n = parseInt(hex.slice(1), 16);
+    return 'rgba(' + (n >> 16 & 255) + ',' + (n >> 8 & 255) + ',' + (n & 255) + ',' + a + ')';
   }
   // shrink a font size until the string fits inside maxW
   function fitSize(c, str, size, weight, ls, maxW) {
@@ -75,43 +80,55 @@
       c.drawImage(bg, 0, 0, 1080, srcH, (W - W * bs) / 2, by, W * bs, srcH * bs);
     }
 
-    // Layout: photo card is smaller and centred; name sits ABOVE the "attending" line.
-    // Card and text block shifted up 10px (closer to the logo); pills unchanged.
+        // Layout (all text uses textBaseline 'top', so each line occupies ~its font size in height).
+    // Vertical rhythm: card → 32px → NAME(80) → 28px → bar(5) → 24px → ATTENDING(55) → 27px → VENUE
+    // Block is nudged down slightly so the gap above (card) and below (pills) feels balanced.
     var L = isPost
-      ? {
-          card: { x: 220, y: 435, w: 640, h: 560 },
-          nameY: 1025, nameSize: 44,
-          attendY: 1085, attendSize: 24,
-          venueY: 1125, venueSize: 22,
-          solo: { attendY: 1033, attendSize: 28, venueY: 1075, venueSize: 24 },
-          pillY: 1240, pillH: 64, pillFont: 26, M: 60
-        }
-      : {
-          card: { x: 195, y: 495, w: 690, h: 800 },
-          nameY: 1330, nameSize: 54,
-          attendY: 1403, attendSize: 28,
-          venueY: 1451, venueSize: 26,
-          solo: { attendY: 1335, attendSize: 32, venueY: 1389, venueSize: 28 },
-          pillY: 1760, pillH: 76, pillFont: 30, M: 70
-        };
+  ? {
+      card: { x: 300, y: 360, w: 480, h: 460 },
+      nameY: 872, nameSize: 80,
+      barY: 980,
+      attendY: 1008, attendSize: 55,
+      venueY: 1090, venueSize: 22,
+      solo: { attendY: 872, attendSize: 55, venueY: 954, venueSize: 22 },
+      pillY: 1240, pillH: 64, pillFont: 26, M: 60
+    }
+  : {
+      card: { x: 290, y: 420, w: 500, h: 600 },
+      nameY: 1070, nameSize: 80,
+      barY: 1182,
+      attendY: 1212, attendSize: 55,
+      venueY: 1300, venueSize: 28,
+      solo: { attendY: 1070, attendSize: 55, venueY: 1152, venueSize: 28 },
+      pillY: 1760, pillH: 76, pillFont: 30, M: 70
+    };
 
     drawPhotoCard(c, L.card, T);
 
     var maxTextW = W - L.M * 2;
     var nm = (state.name || '').trim();
+    var attendStyle = { weight: 600, color: '#FFFFFF', align: 'center', ls: 0.5, glow: 'rgba(0,0,0,0.45)', blur: 16 };
+    var venueStyle  = { weight: 500, color: 'rgba(255,255,255,0.8)', align: 'center', ls: 1 };
 
     if (nm) {
-      // name on top
       var nmSize = fitSize(c, nm, L.nameSize, 700, -1, maxTextW);
-      text(c, nm, W / 2, L.nameY, { size: nmSize, weight: 700, color: '#FFFFFF', align: 'center', ls: -1 });
-      // "I'm attending..." below the name
-      var attSize = fitSize(c, ATTENDING, L.attendSize, 600, 0, maxTextW);
-      text(c, ATTENDING, W / 2, L.attendY, { size: attSize, weight: 600, color: T.color, align: 'center' });
-      text(c, VENUE, W / 2, L.venueY, { size: L.venueSize, weight: 500, color: 'rgba(255,255,255,0.75)', align: 'center' });
+      text(c, nm, W / 2, L.nameY, { size: nmSize, weight: 700, color: '#FFFFFF', align: 'center', ls: -1, glow: 'rgba(0,0,0,0.45)', blur: 16 });
+
+      // small accent bar between the name and the details
+      c.save();
+      c.fillStyle = T.color; c.shadowColor = hexA(T.color, 0.8); c.shadowBlur = 14;
+      roundRect(c, W / 2 - 28, L.barY, 56, 5, 2.5); c.fill();
+      c.restore();
+
+      var attSize = fitSize(c, ATTENDING, L.attendSize, 600, 0.5, maxTextW);
+      text(c, ATTENDING, W / 2, L.attendY, Object.assign({ size: attSize }, attendStyle));
+      var venSize = fitSize(c, VENUE, L.venueSize, 500, 1, maxTextW);
+      text(c, VENUE, W / 2, L.venueY, Object.assign({ size: venSize }, venueStyle));
     } else {
-      var soloSize = fitSize(c, ATTENDING, L.solo.attendSize, 600, 0, maxTextW);
-      text(c, ATTENDING, W / 2, L.solo.attendY, { size: soloSize, weight: 600, color: T.color, align: 'center' });
-      text(c, VENUE, W / 2, L.solo.venueY, { size: L.solo.venueSize, weight: 500, color: 'rgba(255,255,255,0.8)', align: 'center' });
+      var soloAtt = fitSize(c, ATTENDING, L.solo.attendSize, 600, 0.5, maxTextW);
+      text(c, ATTENDING, W / 2, L.solo.attendY, Object.assign({ size: soloAtt }, attendStyle));
+      var soloVen = fitSize(c, VENUE, L.solo.venueSize, 500, 1, maxTextW);
+      text(c, VENUE, W / 2, L.solo.venueY, Object.assign({ size: soloVen }, venueStyle));
     }
 
     drawPill(c, L.M, L.pillY, L.pillH, L.pillFont, '#DevFestNoida2026', null, 'left');
@@ -119,36 +136,65 @@
   }
 
   function drawPill(c, x, y, h, font, label, dot, anchor) {
-    var padX = Math.round(h * 0.45), dotR = dot ? Math.round(h * 0.17) : 0, ls = dot ? 2 : 0;
+    var padX = Math.round(h * 0.45), dotR = dot ? Math.round(h * 0.15) : 0, ls = dot ? 2 : 0.3;
     var tw = measure(c, label, font, 600, ls);
     var w = tw + padX * 2 + (dot ? dotR * 2 + 14 : 0);
     var px = anchor === 'right' ? x - w : x;
-    c.save(); c.shadowColor = 'rgba(0,0,0,0.35)'; c.shadowBlur = 16; c.shadowOffsetY = 4;
-    c.fillStyle = '#FFFFFF'; roundRect(c, px, y, w, h, h / 2); c.fill(); c.restore();
+    c.save();
+    c.shadowColor = dot ? hexA(dot, 0.55) : 'rgba(0,0,0,0.35)';
+    c.shadowBlur = dot ? 28 : 16; c.shadowOffsetY = 4;
+    c.fillStyle = '#FFFFFF'; roundRect(c, px, y, w, h, h / 2); c.fill();
+    c.restore();
+    if (dot) {
+      // theme-coloured ring for the attendee pill
+      c.save(); c.strokeStyle = dot; c.lineWidth = 3; roundRect(c, px + 1.5, y + 1.5, w - 3, h - 3, h / 2 - 1.5); c.stroke(); c.restore();
+    }
     var tx = px + padX;
-    if (dot) { c.fillStyle = dot; c.beginPath(); c.arc(tx + dotR, y + h / 2, dotR, 0, Math.PI * 2); c.fill(); tx += dotR * 2 + 14; }
+    if (dot) {
+      c.fillStyle = dot; c.beginPath(); c.arc(tx + dotR, y + h / 2, dotR, 0, Math.PI * 2); c.fill();
+      tx += dotR * 2 + 14;
+    }
     text(c, label, tx, y + h / 2 + 1, { size: font, weight: 600, color: '#202124', baseline: 'middle', ls: ls });
   }
 
   function drawPhotoCard(c, box, T) {
-    var x = box.x, y = box.y, w = box.w, h = box.h, pad = 0, r = 40;
-    c.save(); c.shadowColor = T.glow; c.shadowBlur = 70; c.fillStyle = 'rgba(5,5,5,0.72)'; roundRect(c, x, y, w, h, r); c.fill(); c.restore();
-    c.save(); c.strokeStyle = T.color; c.lineWidth = 3; roundRect(c, x, y, w, h, r); c.stroke();
-    c.strokeStyle = 'rgba(255,255,255,0.35)'; c.lineWidth = 1; roundRect(c, x + 1.5, y + 1.5, w - 3, h - 3, r - 1.5); c.stroke(); c.restore();
-    var iw = w - pad * 2, ih = h - pad * 2;
-    c.save(); roundRect(c, x + pad, y + pad, iw, ih, r - pad); c.clip();
-    var cx = x + pad + iw / 2, cy = y + pad + ih / 2, p = state.photo;
+    var x = box.x, y = box.y, w = box.w, h = box.h, r = 44;
+
+    // glow + dark base
+    c.save();
+    c.shadowColor = hexA(T.color, 0.6); c.shadowBlur = 140;
+    c.fillStyle = 'rgba(5,5,5,0.78)'; roundRect(c, x, y, w, h, r); c.fill();
+    c.restore();
+
+    // photo (clipped)
+    c.save(); roundRect(c, x, y, w, h, r); c.clip();
+    var cx = x + w / 2, cy = y + h / 2, p = state.photo;
     if (p && p.naturalWidth) {
-      var s = Math.max(iw / p.naturalWidth, ih / p.naturalHeight) * state.zoom;
+      var s = Math.max(w / p.naturalWidth, h / p.naturalHeight) * state.zoom;
       var dw = p.naturalWidth * s, dh = p.naturalHeight * s;
       c.drawImage(p, cx - dw / 2 + state.offsetX, cy - dh / 2 + state.offsetY, dw, dh);
+      // soft fade at the bottom so the card blends into the badge
+      var g = c.createLinearGradient(0, y + h * 0.7, 0, y + h);
+      g.addColorStop(0, 'rgba(5,5,5,0)'); g.addColorStop(1, 'rgba(5,5,5,0.55)');
+      c.fillStyle = g; c.fillRect(x, y, w, h);
     } else {
-      c.fillStyle = '#0B0B0C'; c.fillRect(x + pad, y + pad, iw, ih);
-      c.strokeStyle = 'rgba(255,255,255,0.06)'; c.lineWidth = 2;
-      for (var k = 0; k < iw + ih; k += 26) { c.beginPath(); c.moveTo(x + pad + k, y + pad); c.lineTo(x + pad + k - ih, y + pad + ih); c.stroke(); }
-      text(c, 'drop your photo here', cx, cy - 10, { size: 30, weight: 600, color: '#FFFFFF', align: 'center', baseline: 'middle' });
-      text(c, 'the badge updates as you tweak', cx, cy + 26, { size: 18, weight: 400, color: 'rgba(255,255,255,0.55)', align: 'center', baseline: 'middle' });
+      c.fillStyle = '#0B0B0C'; c.fillRect(x, y, w, h);
+      // dashed inner frame
+      c.save(); c.setLineDash([14, 12]); c.strokeStyle = hexA(T.color, 0.6); c.lineWidth = 2;
+      roundRect(c, x + 28, y + 28, w - 56, h - 56, r - 20); c.stroke(); c.restore();
+      // camera icon
+      c.save(); c.strokeStyle = 'rgba(255,255,255,0.8)'; c.lineWidth = 4;
+      roundRect(c, cx - 38, cy - 62, 76, 54, 10); c.stroke();
+      c.beginPath(); c.arc(cx, cy - 35, 14, 0, Math.PI * 2); c.stroke(); c.restore();
+      text(c, 'drop your photo here', cx, cy + 28, { size: 30, weight: 600, color: '#FFFFFF', align: 'center', baseline: 'middle' });
+      text(c, 'the badge updates as you tweak', cx, cy + 66, { size: 20, weight: 400, color: 'rgba(255,255,255,0.55)', align: 'center', baseline: 'middle' });
     }
+    c.restore();
+
+    // borders: theme outline + subtle inner highlight
+    c.save();
+    c.strokeStyle = T.color; c.lineWidth = 4; roundRect(c, x, y, w, h, r); c.stroke();
+    c.strokeStyle = 'rgba(255,255,255,0.3)'; c.lineWidth = 1; roundRect(c, x + 3, y + 3, w - 6, h - 6, r - 3); c.stroke();
     c.restore();
   }
 
