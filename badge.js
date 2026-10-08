@@ -9,6 +9,7 @@
   var CAPTION = "I'll be at #DevFestNoida2026 on 10 October at ExpoInn, Greater Noida. One day, four tracks, a floor full of builders. See you there!";
   var SITE = 'https://devfest2k26.gdgnoida.com';
   var VENUE = '10 October 2026  \u00B7  ExpoInn, Greater Noida';
+  var ATTENDING = 'I\u2019m attending DevFest Noida 2026';
 
   var state = { photo: null, zoom: 1, offsetX: 0, offsetY: 0, format: 'post', theme: 'green', name: '' };
   var bgs = {};
@@ -52,6 +53,11 @@
   function measure(c, str, size, weight, ls) {
     c.save(); setFont(c, size, weight, ls); var w = c.measureText(str).width; c.restore(); return w;
   }
+  // shrink a font size until the string fits inside maxW
+  function fitSize(c, str, size, weight, ls, maxW) {
+    while (size > 12 && measure(c, str, size, weight, ls) > maxW) size -= 1;
+    return size;
+  }
 
   function drawBadge(c, W, H) {
     var isPost = H === 1350;
@@ -62,17 +68,37 @@
     if (bg) c.drawImage(bg, 0, 0, 1080, H, 0, 0, W, H); // stories are 1080x1920; post crops the top 1350
 
     var L = isPost
-      ? { card: { x: 150, y: 420, w: 780, h: 620 }, nameY: 1085, nameSize: 56, venueY: 1160, venueSize: 26, pillY: 1232, pillH: 64, pillFont: 26, M: 60 }
-      : { card: { x: 120, y: 470, w: 840, h: 880 }, nameY: 1415, nameSize: 66, venueY: 1505, venueSize: 30, pillY: 1760, pillH: 76, pillFont: 30, M: 70 };
+      ? {
+          card: { x: 150, y: 420, w: 780, h: 620 },
+          attendY: 1066, attendSize: 30,
+          nameY: 1106, nameSize: 56,
+          venueY: 1176, venueSize: 26,
+          solo: { attendY: 1072, attendSize: 36, venueY: 1128, venueSize: 30 },
+          pillY: 1240, pillH: 64, pillFont: 26, M: 60
+        }
+      : {
+          card: { x: 120, y: 470, w: 840, h: 880 },
+          attendY: 1392, attendSize: 34,
+          nameY: 1446, nameSize: 66,
+          venueY: 1530, venueSize: 30,
+          solo: { attendY: 1410, attendSize: 40, venueY: 1482, venueSize: 34 },
+          pillY: 1760, pillH: 76, pillFont: 30, M: 70
+        };
 
     drawPhotoCard(c, L.card, T);
 
+    var maxTextW = W - L.M * 2;
     var nm = (state.name || '').trim();
+    var attY = nm ? L.attendY : L.solo.attendY;
+    var attSize = fitSize(c, ATTENDING, nm ? L.attendSize : L.solo.attendSize, 600, 0, maxTextW);
+    text(c, ATTENDING, W / 2, attY, { size: attSize, weight: 600, color: T.color, align: 'center' });
+
     if (nm) {
-      text(c, nm, W / 2, L.nameY, { size: L.nameSize, weight: 700, color: '#FFFFFF', align: 'center', ls: -1 });
+      var nmSize = fitSize(c, nm, L.nameSize, 700, -1, maxTextW);
+      text(c, nm, W / 2, L.nameY, { size: nmSize, weight: 700, color: '#FFFFFF', align: 'center', ls: -1 });
       text(c, VENUE, W / 2, L.venueY, { size: L.venueSize, weight: 500, color: 'rgba(255,255,255,0.75)', align: 'center' });
     } else {
-      text(c, VENUE, W / 2, L.nameY + 10, { size: L.venueSize + 4, weight: 500, color: 'rgba(255,255,255,0.8)', align: 'center' });
+      text(c, VENUE, W / 2, L.solo.venueY, { size: L.solo.venueSize, weight: 500, color: 'rgba(255,255,255,0.8)', align: 'center' });
     }
     drawPill(c, L.M, L.pillY, L.pillH, L.pillFont, '#DevFestNoida2026', null, 'left');
     drawPill(c, W - L.M, L.pillY, L.pillH, L.pillFont, 'ATTENDEE', T.color, 'right');
